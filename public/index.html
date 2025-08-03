@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Scraper</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🕷️ Product Scraper</h1>
+            <p>Extract product information from any e-commerce website</p>
+        </header>
+
+        <main>
+            <form id="scrapeForm" class="scrape-form">
+                <div class="scrape-type-group">
+                    <label class="scrape-type-label">Scraping Type:</label>
+                    <div class="radio-group">
+                        <label class="radio-option">
+                            <input type="radio" name="scrapeType" value="single" checked>
+                            <span class="radio-text">Single Product</span>
+                            <small>Scrape one specific product page</small>
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="scrapeType" value="category">
+                            <span class="radio-text">Category Page</span>
+                            <small>Scrape all products from a category/listing page</small>
+                        </label>
+                    </div>
+                    <div id="categoryOptions" style="display: none; margin-top: 15px; padding-left: 20px;">
+                        <label class="checkbox-option">
+                            <input type="checkbox" id="scrapeAllPages" name="scrapeAllPages">
+                            <span>Scrape all pages (pagination)</span>
+                            <small style="display: block; margin-left: 25px; color: #666;">Automatically navigate through all pages until no more products are found</small>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="input-group">
+                    <label for="url" id="urlLabel">Product URL:</label>
+                    <input 
+                        type="url" 
+                        id="url" 
+                        name="url" 
+                        placeholder="https://example.com/product" 
+                        required
+                    >
+                    <button type="submit" id="scrapeBtn">
+                        <span class="btn-text">Scrape Product</span>
+                        <span class="btn-loading" style="display: none;">Scraping...</span>
+                    </button>
+                </div>
+            </form>
+
+            <div id="results" class="results" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 id="resultsTitle">Product Information</h2>
+                    <div class="export-buttons">
+                        <button id="exportSheetsBtn" class="export-btn" style="background: #4285F4; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-right: 10px;">
+                            📊 Save to Google Sheets
+                        </button>
+                        <button id="exportBtn" class="export-btn" style="background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">
+                            📁 Save to Excel
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Single product results -->
+                <div id="singleProductResults" style="display: none;">
+                    <div class="result-item">
+                        <strong>Title:</strong>
+                        <span id="productTitle">-</span>
+                    </div>
+                    <div class="result-item">
+                        <strong>Price:</strong>
+                        <span id="productPrice">-</span>
+                    </div>
+                    <div class="result-item">
+                        <strong>Quantity/Amount:</strong>
+                        <span id="productAmount">-</span>
+                    </div>
+                    <div class="result-item">
+                        <strong>Availability:</strong>
+                        <span id="productAvailability">-</span>
+                    </div>
+                    <div class="result-item">
+                        <strong>Image:</strong>
+                        <span id="productImage">-</span>
+                    </div>
+                    <div class="result-item">
+                        <strong>Description:</strong>
+                        <span id="productDescription">-</span>
+                    </div>
+                    <div class="result-item">
+                        <strong>SKU:</strong>
+                        <span id="productSku">-</span>
+                    </div>
+                    <div class="result-item">
+                        <strong>Breadcrumb:</strong>
+                        <span id="productBreadcrumb">-</span>
+                    </div>
+                    <div class="result-item">
+                        <strong>Primary Category:</strong>
+                        <span id="productPrimaryCategory">-</span>
+                    </div>
+                    
+                    <!-- Cable Specifications Section -->
+                    <div class="result-item" style="border-top: 2px solid #e0e0e0; padding-top: 15px; margin-top: 15px;">
+                        <strong style="color: #2563eb; font-size: 1.1em;">⚡ Cable Specifications:</strong>
+                    </div>
+                    <div class="result-item">
+                        <strong>Cable Type:</strong>
+                        <span id="cableType">-</span>
+                    </div>
+                    <div class="result-item">
+                        <strong>Diameter (mm²):</strong>
+                        <span id="cableDiameter">-</span>
+                    </div>
+                    <div class="result-item">
+                        <strong>Conductor Count:</strong>
+                        <span id="cableConductors">-</span>
+                    </div>
+                    <div class="result-item">
+                        <strong>Length (m):</strong>
+                        <span id="cableLength">-</span>
+                    </div>
+                    <div class="result-item">
+                        <strong>Quantity per Unit:</strong>
+                        <span id="cableQuantity">-</span>
+                    </div>
+                    <div class="result-item">
+                        <strong>Outer Diameter (mm):</strong>
+                        <span id="cableOuterDiameter">-</span>
+                    </div>
+                    <div class="result-item">
+                        <strong>Parsing Confidence:</strong>
+                        <span id="parsingConfidence">-</span>
+                    </div>
+                    
+                    <div class="result-item">
+                        <strong>URL:</strong>
+                        <span id="productUrl">-</span>
+                    </div>
+                    <div class="result-item">
+                        <strong>Scraped at:</strong>
+                        <span id="scrapeTime">-</span>
+                    </div>
+                </div>
+                
+                <!-- Category results -->
+                <div id="categoryResults" style="display: none;">
+                    <div class="result-item">
+                        <strong>Category URL:</strong>
+                        <span id="categoryUrl">-</span>
+                    </div>
+                    <div class="result-item">
+                        <strong>Pages Scraped:</strong>
+                        <span id="pagesScraped">-</span>
+                    </div>
+                    <div class="result-item">
+                        <strong>Products Found:</strong>
+                        <span id="productsFound">-</span>
+                    </div>
+                    <div class="result-item">
+                        <strong>Products Successfully Scraped:</strong>
+                        <span id="productsScraped">-</span>
+                    </div>
+                    <div class="result-item">
+                        <strong>Scraped at:</strong>
+                        <span id="categoryScrapeTime">-</span>
+                    </div>
+                    
+                    <div id="productsList" class="products-list" style="margin-top: 20px;">
+                        <h3>Products:</h3>
+                        <div id="productsContainer"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="error" class="error" style="display: none;">
+                <h2>❌ Error</h2>
+                <p id="errorMessage">Something went wrong</p>
+            </div>
+
+            <div id="loading" class="loading" style="display: none;">
+                <div class="spinner"></div>
+                <p>Scraping product information...</p>
+            </div>
+        </main>
+
+        <footer>
+            <p>Enter a product URL above and click "Scrape Product" to extract information.</p>
+            <p><small>This tool respects website terms of service and includes delays between requests.</small></p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
