@@ -9,6 +9,7 @@
 class CableSpecs {
     constructor() {
         this.cable_type = null;
+        this.cable_category = null;   // ground, installation, network, etc.
         this.diameter = null;          // in mm²
         this.conductors = null;        // aantal aders
         this.length = null;           // in meters
@@ -19,12 +20,38 @@ class CableSpecs {
 
 class CableSpecParser {
     constructor() {
-        // Nederlandse kabel types (meest voorkomend)
-        this.cable_types = [
-            'YMvK', 'XMvK', 'VMvK', 'NYAF', 'VVB', 'H07V-K', 'H07V-U', 
-            'H05V-K', 'H05V-U', 'PFXP', 'J-Y(St)Y', 'UTP', 'FTP', 'SFTP',
-            'H07RN-F', 'H05RN-F', 'NYM', 'NKT', 'AMS', 'AMKA'
-        ];
+        // Nederlandse kabel types - based on reference/cabel reference.md
+        this.cable_types = {
+            // Ground cables
+            ground: ['YMVK-AS', 'XMVK-AS', 'YMvK-AS', 'XMvK-AS', 'grondkabel'],
+            
+            // Installation cables  
+            installation: ['YMvK', 'XMvK', 'VMvK', 'TKF', 'YMvK-super-soepel'],
+            
+            // Neopreen cables
+            neopreen: ['Neopreen', 'H07RN-F', 'H05RR-F', 'H05RN-F'],
+            
+            // Installation wires
+            wire: ['VD', 'NYAF', 'aansluitdraad', 'installatiedraad', 'aarddraad', 'aardedraad', 'montagedraad'],
+            
+            // Network cables
+            network: ['UTP', 'FTP', 'SFTP', 'Cat5e', 'Cat6', 'Cat7', 'netwerkkabel', 'patchkabel'],
+            
+            // Audio/Video cables
+            av: ['HDMI', 'Coax', 'coaxkabel', 'antennekabel', 'luidsprekerkabel', 'USB', 'displayport'],
+            
+            // Household cables
+            household: ['netsnoer', 'VMVL', 'textielsnoer', 'verlengkabel', 'prikkabel', 'DSL'],
+            
+            // Industrial/Special cables
+            industrial: ['H07BQ-F', 'PUR', 'solar', 'signaalkabel', 'brandmeldkabel', 'alarmkabel', 'stuurstroomkabel', 'laskabel', 'H01N2-D', 'ELFLEX'],
+            
+            // Legacy types for compatibility
+            legacy: ['PFXP', 'J-Y(St)Y', 'NYM', 'NKT', 'AMS', 'AMKA', 'H07V-K', 'H07V-U', 'H05V-K', 'H05V-U']
+        };
+        
+        // Flatten all types for backward compatibility
+        this.all_cable_types = Object.values(this.cable_types).flat();
         
         this._compilePatterns();
     }
@@ -93,8 +120,9 @@ class CableSpecParser {
         const specs = new CableSpecs();
         const text = `${title} ${description}`.trim();
         
-        // 1. Detect cable type
+        // 1. Detect cable type and category
         specs.cable_type = this._extractCableType(text);
+        specs.cable_category = this._extractCableCategory(text);
         
         // 2. Extract diameter (mm²)
         specs.diameter = this._extractDiameter(text);
@@ -115,13 +143,27 @@ class CableSpecParser {
     }
     
     _extractCableType(text) {
-        for (const cableType of this.cable_types) {
+        // Check all cable types for matches
+        for (const cableType of this.all_cable_types) {
             const regex = new RegExp(`\\b${cableType.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
             if (regex.test(text)) {
                 return cableType;
             }
         }
         return null;
+    }
+    
+    _extractCableCategory(text) {
+        // Determine cable category based on detected type
+        for (const [category, types] of Object.entries(this.cable_types)) {
+            for (const type of types) {
+                const regex = new RegExp(`\\b${type.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+                if (regex.test(text)) {
+                    return category;
+                }
+            }
+        }
+        return 'unknown';
     }
     
     _extractDiameter(text) {
@@ -257,15 +299,56 @@ class ElektramatProductParser {
         
         // Voeg geparste specs toe met 'unknown' fallbacks voor Google Sheets
         enhancedProduct.cable_type = specs.cable_type || 'unknown';
-        enhancedProduct.diameter_mm2 = specs.diameter || 'unknown';
-        enhancedProduct.conductor_count = specs.conductors || 'unknown';
-        enhancedProduct.length_meters = specs.length || 'unknown';
-        enhancedProduct.quantity_per_unit = specs.quantity || 'unknown';
-        enhancedProduct.outer_diameter_mm = specs.outer_diameter || 'unknown';
+        enhancedProduct.cable_category = specs.cable_category || 'unknown';
+        enhancedProduct.diameter_mm2 = this._normalizeNumericValue(specs.diameter);
+        enhancedProduct.conductor_count = this._normalizeNumericValue(specs.conductors);
+        enhancedProduct.length_meters = this._normalizeNumericValue(specs.length);
+        enhancedProduct.quantity_per_unit = this._normalizeNumericValue(specs.quantity);
+        enhancedProduct.outer_diameter_mm = this._normalizeNumericValue(specs.outer_diameter);
+        
+        // Add category-specific fields for wizard use
+        if (specs.cable_category === 'network') {
+            enhancedProduct.network_category = this._extractNetworkCategory(productData.title || '');
+            enhancedProduct.shielding_type = this._extractShieldingType(productData.title || '');
+        }
+        
         enhancedProduct.parsed_at = new Date().toISOString();
         enhancedProduct.parsing_confidence = this._calculateConfidence(specs);
         
         return enhancedProduct;
+    }
+    
+    _normalizeNumericValue(value) {
+        if (value === null || value === undefined) {
+            return 'unknown';
+        }
+        if (typeof value === 'number') {
+            return value;
+        }
+        return value;
+    }
+    
+    _extractNetworkCategory(text) {
+        const lowerText = text.toLowerCase();
+        
+        if (lowerText.includes('cat8')) return 'Cat8';
+        if (lowerText.includes('cat7')) return 'Cat7';
+        if (lowerText.includes('cat6a')) return 'Cat6a';
+        if (lowerText.includes('cat6')) return 'Cat6';
+        if (lowerText.includes('cat5e')) return 'Cat5e';
+        if (lowerText.includes('cat5')) return 'Cat5';
+        
+        return 'unknown';
+    }
+    
+    _extractShieldingType(text) {
+        const lowerText = text.toLowerCase();
+        
+        if (lowerText.includes('sftp') || lowerText.includes('s/ftp')) return 'S/FTP';
+        if (lowerText.includes('ftp') || lowerText.includes('f/utp')) return 'F/UTP';
+        if (lowerText.includes('utp') || lowerText.includes('u/utp')) return 'U/UTP';
+        
+        return 'unknown';
     }
     
     _calculateConfidence(specs) {

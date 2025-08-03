@@ -83,6 +83,11 @@ app.post('/api/export-sheets', async (req, res) => {
       let exportResults = [];
       if (scrapeType === 'category' && data.products && Array.isArray(data.products)) {
         exportResults = data.products.filter(product => product.success);
+        // Add category source URL to each product
+        exportResults = exportResults.map(product => ({
+          ...product,
+          categorySourceUrl: url // The category URL that was scraped
+        }));
         console.log(`📊 Filtering successful products: ${exportResults.length} out of ${data.products.length}`);
       } else {
         // For single product, create a result object in the expected format
@@ -90,6 +95,7 @@ app.post('/api/export-sheets', async (req, res) => {
           success: true,
           url: url,
           data: data,
+          categorySourceUrl: url, // For single products, source URL is the product URL
           timestamp: new Date().toISOString()
         }];
       }

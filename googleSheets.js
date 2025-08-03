@@ -75,7 +75,8 @@ class GoogleSheetsExporter {
 
   getCableHeaders() {
     return [
-      'URL',
+      'Category_Source_URL',
+      'Product_URL',
       'Title',
       'Brand',
       'Price',
@@ -90,6 +91,7 @@ class GoogleSheetsExporter {
       'Material',
       'Image URL',
       'Cable Type',
+      'Cable Category',
       'Diameter (mm²)',
       'Conductor Count',
       'Length (m)',
@@ -98,7 +100,111 @@ class GoogleSheetsExporter {
       'Parsing Confidence',
       'Data Quality %',
       'Scrape Status',
-      'Timestamp'
+      'Scraped Date'
+    ];
+  }
+
+  getGrondkabelHeaders() {
+    return [
+      'Category_Source_URL',
+      'Product_URL', 
+      'Title',
+      'Brand',
+      'Price',
+      'Currency',
+      'Amount/Quantity',
+      'SKU',
+      'Availability',
+      'Description',
+      'Image URL',
+      'Cable Type',
+      'Conductor Count',
+      'Diameter (mm²)', 
+      'Length (m)',
+      'Outer Diameter (mm)',
+      'Voltage Rating',
+      'Ground Cable Type',
+      'Parsing Confidence',
+      'Scrape Status',
+      'Scraped Date'
+    ];
+  }
+
+  getNetwerkkabelHeaders() {
+    return [
+      'Category_Source_URL',
+      'Product_URL',
+      'Title', 
+      'Brand',
+      'Price',
+      'Currency',
+      'Amount/Quantity',
+      'SKU',
+      'Availability',
+      'Description',
+      'Image URL',
+      'Cable Type',
+      'Network Category',
+      'Shielding Type',
+      'Length (m)',
+      'Conductor Count',
+      'Bandwidth',
+      'Connector Type',
+      'Parsing Confidence',
+      'Scrape Status',
+      'Scraped Date'
+    ];
+  }
+
+  getAVKabelHeaders() {
+    return [
+      'Category_Source_URL',
+      'Product_URL',
+      'Title',
+      'Brand', 
+      'Price',
+      'Currency',
+      'Amount/Quantity',
+      'SKU',
+      'Availability',
+      'Description',
+      'Image URL',
+      'Cable Type',
+      'AV Standard',
+      'Length (m)',
+      'Connector Type',
+      'Resolution Support',
+      'Impedance',
+      'Parsing Confidence',
+      'Scrape Status',
+      'Scraped Date'
+    ];
+  }
+
+  getIndustrieleKabelHeaders() {
+    return [
+      'Category_Source_URL',
+      'Product_URL',
+      'Title',
+      'Brand',
+      'Price', 
+      'Currency',
+      'Amount/Quantity',
+      'SKU',
+      'Availability',
+      'Description',
+      'Image URL',
+      'Cable Type',
+      'Industrial Type',
+      'Conductor Count',
+      'Diameter (mm²)',
+      'Length (m)',
+      'Voltage Rating',
+      'Temperature Rating',
+      'Special Features',
+      'Parsing Confidence',
+      'Scrape Status',
+      'Scraped Date'
     ];
   }
 
@@ -222,7 +328,7 @@ class GoogleSheetsExporter {
     }
   }
 
-  convertCableResultToRow(result) {
+  convertCableResultToRow(result, categorySourceUrl = '') {
     const data = result.data || {};
     
     // Handle categories safely
@@ -236,6 +342,7 @@ class GoogleSheetsExporter {
     }
     
     return [
+      categorySourceUrl || '',
       result.url || '',
       data.title || '',
       data.brand || '',
@@ -251,6 +358,7 @@ class GoogleSheetsExporter {
       data.material || '',
       data.image || '',
       data.cable_type || 'unknown',
+      data.cable_category || 'unknown',
       data.diameter_mm2 || 'unknown',
       data.conductor_count || 'unknown',
       data.length_meters || 'unknown',
@@ -259,7 +367,63 @@ class GoogleSheetsExporter {
       data.parsing_confidence ? `${Math.round(data.parsing_confidence * 100)}%` : 'unknown',
       data.dataQuality ? `${data.dataQuality.percentage}%` : '',
       result.success ? 'Success' : 'Failed',
-      result.timestamp || new Date().toISOString()
+      new Date().toISOString()
+    ];
+  }
+
+  convertGrondkabelToRow(result, categorySourceUrl = '') {
+    const data = result.data || {};
+    
+    return [
+      categorySourceUrl || '',
+      result.url || '',
+      data.title || '',
+      data.brand || '',
+      data.price || '',
+      data.currency || '',
+      data.amount || '',
+      data.sku || '',
+      data.availability || '',
+      (data.description || '').substring(0, 500),
+      data.image || '',
+      data.cable_type || 'unknown',
+      data.conductor_count || 'unknown',
+      data.diameter_mm2 || 'unknown',
+      data.length_meters || 'unknown',
+      data.outer_diameter_mm || 'unknown',
+      data.voltage_rating || 'unknown',
+      data.cable_type || 'unknown',
+      data.parsing_confidence ? `${Math.round(data.parsing_confidence * 100)}%` : 'unknown',
+      result.success ? 'Success' : 'Failed',
+      new Date().toISOString()
+    ];
+  }
+
+  convertNetwerkkabelToRow(result, categorySourceUrl = '') {
+    const data = result.data || {};
+    
+    return [
+      categorySourceUrl || '',
+      result.url || '',
+      data.title || '',
+      data.brand || '',
+      data.price || '',
+      data.currency || '',
+      data.amount || '',
+      data.sku || '',
+      data.availability || '',
+      (data.description || '').substring(0, 500),
+      data.image || '',
+      data.cable_type || 'unknown',
+      data.network_category || 'unknown',
+      data.shielding_type || 'unknown',
+      data.length_meters || 'unknown',
+      data.conductor_count || 'unknown',
+      data.bandwidth || 'unknown',
+      data.connector_type || 'unknown',
+      data.parsing_confidence ? `${Math.round(data.parsing_confidence * 100)}%` : 'unknown',
+      result.success ? 'Success' : 'Failed',
+      new Date().toISOString()
     ];
   }
 
@@ -315,14 +479,18 @@ class GoogleSheetsExporter {
     ];
   }
 
-  convertResultToRow(result, sheetType = 'cable') {
+  convertResultToRow(result, sheetType = 'cable', categorySourceUrl = '') {
     try {
       console.log(`🔍 Converting result to row for ${sheetType} sheet`);
       
       if (sheetType === 'switching') {
         return this.convertSwitchingResultToRow(result);
+      } else if (sheetType === 'grondkabel') {
+        return this.convertGrondkabelToRow(result, categorySourceUrl);
+      } else if (sheetType === 'netwerkkabel') {
+        return this.convertNetwerkkabelToRow(result, categorySourceUrl);
       } else {
-        return this.convertCableResultToRow(result);
+        return this.convertCableResultToRow(result, categorySourceUrl);
       }
     } catch (error) {
       console.error('❌ Error converting result to row:', error);
@@ -341,12 +509,28 @@ class GoogleSheetsExporter {
       
       // Get correct headers based on sheet type
       let headers;
-      if (sheetName === 'Kabels') {
-        headers = this.getCableHeaders();
-      } else if (sheetName === 'Schakelmateriaal') {
-        headers = this.getSwitchingHeaders();
-      } else {
-        headers = this.getCableHeaders(); // Default
+      switch (sheetName) {
+        case 'Grondkabels':
+          headers = this.getGrondkabelHeaders();
+          break;
+        case 'Netwerkkabels':
+          headers = this.getNetwerkkabelHeaders();
+          break;
+        case 'AV_Kabels':
+          headers = this.getAVKabelHeaders();
+          break;
+        case 'Industriele_Kabels':
+          headers = this.getIndustrieleKabelHeaders();
+          break;
+        case 'Installatiekabels':
+        case 'Kabels': // Legacy support
+          headers = this.getCableHeaders();
+          break;
+        case 'Schakelmateriaal':
+          headers = this.getSwitchingHeaders();
+          break;
+        default:
+          headers = this.getCableHeaders(); // Default fallback
       }
       
       // Dynamic range based on header count
@@ -378,55 +562,55 @@ class GoogleSheetsExporter {
     // Convert to array if single result
     const resultsArray = Array.isArray(results) ? results : [results];
     
-    // Check if any product is a cable based on category field from scraper
-    const hasKabels = resultsArray.some(result => {
-      if (!result.data) return false;
-      
-      const productTitle = result.data.title || '';
-      console.log(`🔍 Analyzing product: "${productTitle}"`);
-      
-      // First check the category field set by scraper.js
-      if (result.data.category === 'cable') {
-        console.log(`  ⚡ Category field indicates 'cable' → Kabels`);
-        return true;
-      }
-      
-      if (result.data.category === 'switching') {
-        console.log(`  🔌 Category field indicates 'switching' → Schakelmateriaal`);
-        return false;
-      }
-      
-      // Fallback: Check cable_type field
-      if (result.data.cable_type && result.data.cable_type !== 'unknown') {
-        console.log(`  ⚡ Has cable_type: ${result.data.cable_type} → Kabels`);
-        return true;
-      }
-      
-      // Fallback: Check for switching material fields
-      if (result.data.product_type && result.data.product_type !== 'unknown') {
-        console.log(`  🔌 Has product_type: ${result.data.product_type} → Schakelmateriaal`);
-        return false;
-      }
-      
-      // Final fallback: Check categories for cable-related terms
-      const categories = result.data.categories || [];
-      const categoriesString = Array.isArray(categories) ? categories.join(' ').toLowerCase() : String(categories).toLowerCase();
-      
-      const cableKeywords = ['kabel', 'cable', 'draad', 'wire', 'ymvk', 'xvb', 'vob', 'nym', 'coax'];
-      const foundKeyword = cableKeywords.find(keyword => categoriesString.includes(keyword));
-      
-      if (foundKeyword) {
-        console.log(`  ⚡ Found cable keyword "${foundKeyword}" in categories → Kabels`);
-        return true;
-      }
-      
-      console.log(`  🔌 No cable indicators found → Schakelmateriaal`);
-      return false;
+    // First check if this is a cable product
+    const cableResult = resultsArray.find(result => {
+      return result.data && result.data.category === 'cable';
     });
     
-    const sheetName = hasKabels ? 'Kabels' : 'Schakelmateriaal';
-    console.log(`📊 Final routing decision: ${sheetName}`);
-    return sheetName;
+    if (cableResult) {
+      // Determine specific cable category sheet
+      const cableCategory = cableResult.data.cable_category;
+      const productTitle = cableResult.data.title || '';
+      
+      console.log(`🔍 Cable detected: "${productTitle}" - Category: ${cableCategory}`);
+      
+      switch (cableCategory) {
+        case 'ground':
+          console.log(`  🌍 Ground cable → Grondkabels`);
+          return 'Grondkabels';
+        case 'network':
+          console.log(`  🌐 Network cable → Netwerkkabels`);
+          return 'Netwerkkabels';
+        case 'av':
+          console.log(`  📺 AV cable → AV_Kabels`);
+          return 'AV_Kabels';
+        case 'industrial':
+          console.log(`  🏭 Industrial cable → Industriele_Kabels`);
+          return 'Industriele_Kabels';
+        case 'installation':
+        case 'neopreen':
+        case 'wire':
+        case 'household':
+        case 'legacy':
+        default:
+          console.log(`  ⚡ Installation/General cable → Installatiekabels`);
+          return 'Installatiekabels';
+      }
+    }
+    
+    // Check for switching materials
+    const switchingResult = resultsArray.find(result => {
+      return result.data && result.data.category === 'switching';
+    });
+    
+    if (switchingResult) {
+      console.log(`  🔌 Switching material → Schakelmateriaal`);
+      return 'Schakelmateriaal';
+    }
+    
+    // Fallback for unknown products
+    console.log(`  ❓ Unknown product type → Overige_Producten`);
+    return 'Overige_Producten';
   }
 
   async ensureSheetExists(spreadsheetId, sheetName) {
@@ -498,8 +682,19 @@ class GoogleSheetsExporter {
       }
 
       // Determine sheet type for proper row conversion
-      const sheetType = sheetName === 'Kabels' ? 'cable' : 'switching';
-      const rows = results.map(result => this.convertResultToRow(result, sheetType));
+      let sheetType = 'cable';
+      if (sheetName === 'Schakelmateriaal') {
+        sheetType = 'switching';
+      } else if (sheetName === 'Grondkabels') {
+        sheetType = 'grondkabel';
+      } else if (sheetName === 'Netwerkkabels') {
+        sheetType = 'netwerkkabel';
+      }
+      
+      // Extract category source URL from results if available
+      const categorySourceUrl = results[0]?.categorySourceUrl || '';
+      
+      const rows = results.map(result => this.convertResultToRow(result, sheetType, categorySourceUrl));
       
       // Check if headers exist, if not set them up
       const headerRange = await this.sheets.spreadsheets.values.get({

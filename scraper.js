@@ -364,6 +364,26 @@ async function scrapeProduct(url) {
 }
 
 /**
+ * Quick cable vs non-cable detection for performance optimization
+ * @param {string} title - Product title
+ * @param {string} description - Product description
+ * @returns {boolean} - True if this is likely a cable product
+ */
+function isQuickCableDetection(title, description) {
+  const text = `${title} ${description}`.toLowerCase();
+  
+  // Fast cable keywords - no regex for speed
+  const cableKeywords = [
+    'kabel', 'draad', 'cable', 'wire', 'snoer',
+    'ymvk', 'xmvk', 'utp', 'coax', 'hdmi',
+    'netsnoer', 'verlengkabel', 'installatiekabel',
+    'grondkabel', 'netwerkkabel', 'antennekabel'
+  ];
+  
+  return cableKeywords.some(keyword => text.includes(keyword));
+}
+
+/**
  * Determine product category for appropriate parsing
  * @param {string} breadcrumbs - Product breadcrumb path
  * @param {string} title - Product title
@@ -373,11 +393,14 @@ async function scrapeProduct(url) {
 function determineProductCategory(breadcrumbs, title, description) {
   const text = `${breadcrumbs} ${title} ${description}`.toLowerCase();
   
+  // Quick cable detection first for performance
+  if (isQuickCableDetection(title, description)) {
+    return 'cable';
+  }
+  
   // Check distribution first to avoid conflict with "module" in switching
   if (text.includes('groepenkast') || text.includes('verdeler') || text.includes('automaat')) {
     return 'distribution';
-  } else if (text.includes('kabel') || text.includes('draad') || text.includes('cable')) {
-    return 'cable';
   } else if (text.includes('schakelmateriaal') || text.includes('schakelaar') || 
              text.includes('stopcontact') || text.includes('dimmer') || 
              text.includes('frame') || text.includes('afdekframe') ||
