@@ -340,12 +340,20 @@ class ElektramatProductParser {
     _extractNetworkCategory(text) {
         const lowerText = text.toLowerCase();
         
-        if (lowerText.includes('cat8')) return 'Cat8';
-        if (lowerText.includes('cat7')) return 'Cat7';
-        if (lowerText.includes('cat6a')) return 'Cat6a';
-        if (lowerText.includes('cat6')) return 'Cat6';
-        if (lowerText.includes('cat5e')) return 'Cat5e';
-        if (lowerText.includes('cat5')) return 'Cat5';
+        // Check for Cat8 variants
+        if (lowerText.includes('cat8') || lowerText.includes('cat 8') || lowerText.includes('categorie 8')) return 'Cat8';
+        
+        // Check for Cat7 variants (including Dutch)
+        if (lowerText.includes('cat7a') || lowerText.includes('cat 7a')) return 'Cat7a';
+        if (lowerText.includes('cat7') || lowerText.includes('cat 7') || lowerText.includes('categorie 7')) return 'Cat7';
+        
+        // Check for Cat6 variants
+        if (lowerText.includes('cat6a') || lowerText.includes('cat 6a')) return 'Cat6a';
+        if (lowerText.includes('cat6') || lowerText.includes('cat 6') || lowerText.includes('categorie 6')) return 'Cat6';
+        
+        // Check for Cat5 variants
+        if (lowerText.includes('cat5e') || lowerText.includes('cat 5e')) return 'Cat5e';
+        if (lowerText.includes('cat5') || lowerText.includes('cat 5') || lowerText.includes('categorie 5')) return 'Cat5';
         
         return 'unknown';
     }
@@ -369,11 +377,12 @@ class ElektramatProductParser {
         }
         
         // Default bandwidth for common categories
-        if (text.includes('cat8')) return '2000 MHz';
-        if (text.includes('cat7')) return '600 MHz';
-        if (text.includes('cat6a')) return '500 MHz';
-        if (text.includes('cat6')) return '250 MHz';
-        if (text.includes('cat5e')) return '100 MHz';
+        if (text.includes('cat8') || text.includes('cat 8')) return '2000 MHz';
+        if (text.includes('cat7a') || text.includes('cat 7a')) return '1000 MHz';
+        if (text.includes('cat7') || text.includes('cat 7')) return '600 MHz';
+        if (text.includes('cat6a') || text.includes('cat 6a')) return '500 MHz';
+        if (text.includes('cat6') || text.includes('cat 6')) return '250 MHz';
+        if (text.includes('cat5e') || text.includes('cat 5e')) return '100 MHz';
         
         return 'unknown';
     }

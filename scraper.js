@@ -22,7 +22,7 @@ async function scrapeProduct(url) {
     });
     
     // Wait for dynamic content to load (delivery times, stock levels, etc.)
-    await page.waitForTimeout(2000);
+    await new Promise(resolve => setTimeout(resolve, 2000));
     
     
     const productData = await page.evaluate(() => {
@@ -282,6 +282,39 @@ async function scrapeProduct(url) {
           }
         }
       }
+      
+      // Enhanced brand extraction from title if not found by selectors
+      if (!result.brand && result.title) {
+        const knownBrands = [
+          'Snelflex', 'Attema', 'Prysmian', 'Nexans', 'TKF', 'Draka', 'Belden',
+          'Legrand', 'Schneider', 'ABB', 'Gira', 'Busch-Jaeger', 'Jung',
+          'Hager', 'Peha', 'Kopp', 'Berker', 'Merten', 'NIKO', 'Gewiss',
+          'Eaton', 'Siemens', 'Phoenix Contact', 'Wago', 'Hensel'
+        ];
+        
+        // First check if title starts with brand name (most reliable)
+        const titleWords = result.title.split(/\s+/);
+        for (const brand of knownBrands) {
+          if (titleWords.length > 0 && titleWords[0].toLowerCase() === brand.toLowerCase()) {
+            result.brand = brand;
+            result.debug.foundSelectors.brand = 'title-first-word';
+            break;
+          }
+        }
+        
+        // Then check if brand appears anywhere in title
+        if (!result.brand) {
+          const titleLower = result.title.toLowerCase();
+          for (const brand of knownBrands) {
+            if (titleLower.includes(brand.toLowerCase())) {
+              result.brand = brand;
+              result.debug.foundSelectors.brand = 'title-contains';
+              break;
+            }
+          }
+        }
+      }
+      
       if (!result.brand) result.debug.missingFields.push('brand');
       
       // Material extraction
@@ -290,8 +323,8 @@ async function scrapeProduct(url) {
         '.material',
         '[class*="material"]',
         '.product-material',
-        '[class*="spec"] *:contains("materiaal")',
-        '[class*="specification"] *:contains("material")'
+        '[class*="spec"]',
+        '[class*="specification"]'
       ];
       
       for (const selector of materialSelectors) {
@@ -398,23 +431,6 @@ async function scrapeProduct(url) {
         }
       }
       
-      // Brand extraction from title
-      if (!result.brand && result.title) {
-        const knownBrands = [
-          'Snelflex', 'Attema', 'Prysmian', 'Nexans', 'TKF', 'Draka', 'Belden',
-          'Legrand', 'Schneider', 'ABB', 'Gira', 'Busch-Jaeger', 'Jung',
-          'Hager', 'Peha', 'Kopp', 'Berker', 'Merten'
-        ];
-        
-        const titleLower = result.title.toLowerCase();
-        for (const brand of knownBrands) {
-          if (titleLower.includes(brand.toLowerCase())) {
-            result.brand = brand;
-            result.debug.foundSelectors.brand = 'title-pattern';
-            break;
-          }
-        }
-      }
       
       // Material extraction from title/description
       if (!result.material) {
@@ -439,7 +455,9 @@ async function scrapeProduct(url) {
         const speedPatterns = [
           /(\d+)\s*(mbit|mbps|gbit|gbps)/i,
           /(\d+)\s*MHz/i,
-          /(cat\d+[a-z]*)/i
+          /(cat\d+[a-z]*)/i,
+          /(cat\s*\d+[a-z]*)/i,
+          /(categorie\s*\d+)/i
         ];
         
         for (const pattern of speedPatterns) {
@@ -790,7 +808,7 @@ async function scrapeCategoryPage(categoryUrl, scrapeAllPages = false, collectUr
         });
         
         // Wait for dynamic content to load
-        await page.waitForTimeout(1500);
+        await new Promise(resolve => setTimeout(resolve, 1500));
       } catch (navError) {
         console.log(`Failed to navigate to page ${currentPageNum}: ${navError.message}`);
         break;
