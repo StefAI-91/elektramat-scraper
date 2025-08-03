@@ -21,6 +21,9 @@ async function scrapeProduct(url) {
       timeout: 30000
     });
     
+    // Wait for dynamic content to load (delivery times, stock levels, etc.)
+    await page.waitForTimeout(2000);
+    
     
     const productData = await page.evaluate(() => {
       const result = {
@@ -250,6 +253,229 @@ async function scrapeProduct(url) {
         }
       }
       if (!result.sku) result.debug.missingFields.push('sku');
+      
+      // Brand extraction
+      const brandSelectors = [
+        '[data-testid="brand"]',
+        '.brand',
+        '.manufacturer',
+        '[class*="brand"]',
+        '[class*="manufacturer"]',
+        '.product-brand',
+        'meta[name="brand"]',
+        'meta[property="product:brand"]'
+      ];
+      
+      for (const selector of brandSelectors) {
+        const element = document.querySelector(selector);
+        if (element) {
+          let brandText = '';
+          if (element.tagName === 'META') {
+            brandText = element.getAttribute('content') || '';
+          } else {
+            brandText = element.textContent.trim();
+          }
+          if (brandText) {
+            result.brand = brandText;
+            result.debug.foundSelectors.brand = selector;
+            break;
+          }
+        }
+      }
+      if (!result.brand) result.debug.missingFields.push('brand');
+      
+      // Material extraction
+      const materialSelectors = [
+        '[data-testid="material"]',
+        '.material',
+        '[class*="material"]',
+        '.product-material',
+        '[class*="spec"] *:contains("materiaal")',
+        '[class*="specification"] *:contains("material")'
+      ];
+      
+      for (const selector of materialSelectors) {
+        const element = document.querySelector(selector);
+        if (element && element.textContent.trim()) {
+          result.material = element.textContent.trim();
+          result.debug.foundSelectors.material = selector;
+          break;
+        }
+      }
+      if (!result.material) result.debug.missingFields.push('material');
+      
+      // Delivery time extraction
+      const deliverySelectors = [
+        '[data-testid="delivery"]',
+        '.delivery-time',
+        '.levertijd',
+        '[class*="delivery"]',
+        '[class*="levertijd"]',
+        '.shipping-time',
+        '[class*="shipping"]'
+      ];
+      
+      for (const selector of deliverySelectors) {
+        const element = document.querySelector(selector);
+        if (element && element.textContent.trim()) {
+          result.delivery_time = element.textContent.trim();
+          result.debug.foundSelectors.delivery_time = selector;
+          break;
+        }
+      }
+      if (!result.delivery_time) result.debug.missingFields.push('delivery_time');
+      
+      // GTIN13/EAN extraction
+      const gtin13Selectors = [
+        '[data-testid="gtin"]',
+        '[data-testid="ean"]',
+        '.gtin',
+        '.ean',
+        '[class*="gtin"]',
+        '[class*="ean"]',
+        '.barcode',
+        'meta[name="gtin13"]',
+        'meta[property="product:gtin13"]'
+      ];
+      
+      for (const selector of gtin13Selectors) {
+        const element = document.querySelector(selector);
+        if (element) {
+          let gtinText = '';
+          if (element.tagName === 'META') {
+            gtinText = element.getAttribute('content') || '';
+          } else {
+            gtinText = element.textContent.trim();
+          }
+          if (gtinText && gtinText.match(/\d{13}/)) {
+            result.gtin13 = gtinText;
+            result.debug.foundSelectors.gtin13 = selector;
+            break;
+          }
+        }
+      }
+      if (!result.gtin13) result.debug.missingFields.push('gtin13');
+      
+      // Data speed extraction (for network cables)
+      const speedSelectors = [
+        '[data-testid="speed"]',
+        '.data-speed',
+        '.speed',
+        '[class*="speed"]',
+        '[class*="bandwidth"]',
+        '.network-speed'
+      ];
+      
+      for (const selector of speedSelectors) {
+        const element = document.querySelector(selector);
+        if (element && element.textContent.trim()) {
+          result.data_speed = element.textContent.trim();
+          result.debug.foundSelectors.data_speed = selector;
+          break;
+        }
+      }
+      if (!result.data_speed) result.debug.missingFields.push('data_speed');
+      
+      // Smart pattern matching fallbacks for Dutch market
+      const bodyText = document.body.textContent || document.body.innerText || '';
+      
+      // Delivery time pattern matching
+      if (!result.delivery_time) {
+        const deliveryPatterns = [
+          /(levertijd|verzending).*?(\d+)\s*(werkdag|dag|week)/i,
+          /(\d+)\s*(werkdag|dag|week).*?(levertijd|verzending)/i,
+          /(op voorraad|binnen \d+ dag)/i,
+          /(direct leverbaar|meteen leverbaar)/i
+        ];
+        
+        for (const pattern of deliveryPatterns) {
+          const match = bodyText.match(pattern);
+          if (match) {
+            result.delivery_time = match[0].trim();
+            result.debug.foundSelectors.delivery_time = 'text-pattern';
+            break;
+          }
+        }
+      }
+      
+      // Brand extraction from title
+      if (!result.brand && result.title) {
+        const knownBrands = [
+          'Snelflex', 'Attema', 'Prysmian', 'Nexans', 'TKF', 'Draka', 'Belden',
+          'Legrand', 'Schneider', 'ABB', 'Gira', 'Busch-Jaeger', 'Jung',
+          'Hager', 'Peha', 'Kopp', 'Berker', 'Merten'
+        ];
+        
+        const titleLower = result.title.toLowerCase();
+        for (const brand of knownBrands) {
+          if (titleLower.includes(brand.toLowerCase())) {
+            result.brand = brand;
+            result.debug.foundSelectors.brand = 'title-pattern';
+            break;
+          }
+        }
+      }
+      
+      // Material extraction from title/description
+      if (!result.material) {
+        const materialPatterns = [
+          /materiaal:?\s*([a-zA-Z\s]+)/i,
+          /(polypropylene|polypropyleen|pvc|polyethylene|copper|koper|aluminium)/i,
+          /(kunststof|plastic|metaal|staal)/i
+        ];
+        
+        for (const pattern of materialPatterns) {
+          const match = bodyText.match(pattern);
+          if (match) {
+            result.material = match[1] || match[0];
+            result.debug.foundSelectors.material = 'text-pattern';
+            break;
+          }
+        }
+      }
+      
+      // Speed/bandwidth extraction
+      if (!result.data_speed) {
+        const speedPatterns = [
+          /(\d+)\s*(mbit|mbps|gbit|gbps)/i,
+          /(\d+)\s*MHz/i,
+          /(cat\d+[a-z]*)/i
+        ];
+        
+        for (const pattern of speedPatterns) {
+          const match = bodyText.match(pattern);
+          if (match) {
+            result.data_speed = match[0];
+            result.debug.foundSelectors.data_speed = 'text-pattern';
+            break;
+          }
+        }
+      }
+      
+      // GTIN13/EAN extraction from text
+      if (!result.gtin13) {
+        const gtinPattern = /\b(\d{13})\b/;
+        const match = bodyText.match(gtinPattern);
+        if (match) {
+          result.gtin13 = match[1];
+          result.debug.foundSelectors.gtin13 = 'text-pattern';
+        }
+      }
+      
+      // Packaging format extraction
+      const packagingPatterns = [
+        /(per\s+rol|per\s+meter|per\s+stuk|per\s+doos|per\s+pak)/i,
+        /(\d+)\s*(meter|stuks?|rollen?|dozen?)\s*(per|\/)/i
+      ];
+      
+      for (const pattern of packagingPatterns) {
+        const match = bodyText.match(pattern);
+        if (match) {
+          result.packaging_format = match[0];
+          result.debug.foundSelectors.packaging_format = 'text-pattern';
+          break;
+        }
+      }
       
       // Enhanced breadcrumb/categories extraction
       const breadcrumbData = extractBreadcrumbs();
@@ -562,6 +788,9 @@ async function scrapeCategoryPage(categoryUrl, scrapeAllPages = false, collectUr
           waitUntil: 'networkidle2',
           timeout: 30000
         });
+        
+        // Wait for dynamic content to load
+        await page.waitForTimeout(1500);
       } catch (navError) {
         console.log(`Failed to navigate to page ${currentPageNum}: ${navError.message}`);
         break;

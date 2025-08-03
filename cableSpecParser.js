@@ -310,7 +310,16 @@ class ElektramatProductParser {
         if (specs.cable_category === 'network') {
             enhancedProduct.network_category = this._extractNetworkCategory(productData.title || '');
             enhancedProduct.shielding_type = this._extractShieldingType(productData.title || '');
+            enhancedProduct.bandwidth = this._extractBandwidth(productData.title || '', productData.description || '');
         }
+        
+        // Copy over directly extracted fields from scraper
+        enhancedProduct.brand = productData.brand || enhancedProduct.brand || 'unknown';
+        enhancedProduct.material = productData.material || enhancedProduct.material || 'unknown';
+        enhancedProduct.delivery_time = productData.delivery_time || 'unknown';
+        enhancedProduct.gtin13 = productData.gtin13 || 'unknown';
+        enhancedProduct.data_speed = productData.data_speed || enhancedProduct.data_speed || 'unknown';
+        enhancedProduct.packaging_format = productData.packaging_format || this._extractPackagingFormat(productData.title || '') || 'unknown';
         
         enhancedProduct.parsed_at = new Date().toISOString();
         enhancedProduct.parsing_confidence = this._calculateConfidence(specs);
@@ -347,6 +356,41 @@ class ElektramatProductParser {
         if (lowerText.includes('sftp') || lowerText.includes('s/ftp')) return 'S/FTP';
         if (lowerText.includes('ftp') || lowerText.includes('f/utp')) return 'F/UTP';
         if (lowerText.includes('utp') || lowerText.includes('u/utp')) return 'U/UTP';
+        
+        return 'unknown';
+    }
+    
+    _extractBandwidth(title, description) {
+        const text = `${title} ${description}`.toLowerCase();
+        
+        const bandwidthMatch = text.match(/(\d+)\s*mhz/i);
+        if (bandwidthMatch) {
+            return `${bandwidthMatch[1]} MHz`;
+        }
+        
+        // Default bandwidth for common categories
+        if (text.includes('cat8')) return '2000 MHz';
+        if (text.includes('cat7')) return '600 MHz';
+        if (text.includes('cat6a')) return '500 MHz';
+        if (text.includes('cat6')) return '250 MHz';
+        if (text.includes('cat5e')) return '100 MHz';
+        
+        return 'unknown';
+    }
+    
+    _extractPackagingFormat(text) {
+        const lowerText = text.toLowerCase();
+        
+        if (lowerText.includes('per rol')) return 'per rol';
+        if (lowerText.includes('per meter')) return 'per meter';
+        if (lowerText.includes('per stuk')) return 'per stuk';
+        if (lowerText.includes('per doos')) return 'per doos';
+        
+        // Extract specific quantities
+        const quantityMatch = lowerText.match(/(\d+)\s*(meter|stuks?|rollen?)/);
+        if (quantityMatch) {
+            return `${quantityMatch[1]} ${quantityMatch[2]}`;
+        }
         
         return 'unknown';
     }
